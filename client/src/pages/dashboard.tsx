@@ -7,6 +7,7 @@ import CustomerProfile from "@/components/dashboard/CustomerProfile";
 import RegionalContext from "@/components/dashboard/RegionalContext";
 import MarginImpactAnalysis from "@/components/dashboard/MarginImpactAnalysis";
 import ActionButtons from "@/components/dashboard/ActionButtons";
+import { AiChatbot } from "@/components/dashboard/AiChatbot";
 import { DashboardFilters, RequestWithCustomer, DashboardStats } from "@/types/dashboard";
 import { DiscountRequest, Customer } from "@shared/schema";
 
@@ -124,6 +125,12 @@ export default function Dashboard() {
           onSelectionClear={() => setSelectedRequestIds([])}
         />
       </div>
+
+      {/* AI Chatbot */}
+      <AiChatbot 
+        selectedRequest={requestsWithCustomers.find(r => selectedRequestIds.includes(r.id))}
+        allRequests={requestsWithCustomers}
+      />
     </div>
   );
 }
