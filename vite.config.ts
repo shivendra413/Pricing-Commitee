@@ -1,21 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-// ...existing code...
 
 export default defineConfig({
-  plugins: [
-    react(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-  // ...existing code...
-      ? [
-          // ...existing code...
-            m.cartographer(),
-          ),
-        ]
-      : []),
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -29,6 +17,8 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
+    host: "0.0.0.0",
+    port: 5000,
     fs: {
       strict: true,
       deny: ["**/.*"],
