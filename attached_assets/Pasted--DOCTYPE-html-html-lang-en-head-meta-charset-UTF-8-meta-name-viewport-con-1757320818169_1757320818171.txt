@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steel Products Pricing Committee Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container { height: 180px !important; }
+        .small-chart { height: 120px !important; }
+        .mini-chart { height: 80px !important; }
+        .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+        .full-width { grid-column: 1 / -1; }
+        .half-width { grid-column: span 2; }
+        .chatbot-container { position: fixed; bottom: 20px; right: 20px; width: 350px; z-index: 1000; }
+        .chat-messages { height: 200px; overflow-y: auto; }
+        .panel { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .steel-gradient { background: linear-gradient(135deg, #434343 0%, #000000 100%); }
+        .request-row:hover { background-color: #f3f4f6; cursor: pointer; }
+        .request-row.selected { background-color: #dbeafe; border-left: 4px solid #3b82f6; }
+        .status-inquiry { background-color: #fef3c7; color: #92400e; }
+        .status-negotiation { background-color: #dbeafe; color: #1e40af; }
+        .status-review { background-color: #fed7aa; color: #c2410c; }
+        .status-ready { background-color: #d1fae5; color: #065f46; }
+        .priority-high { border-left: 4px solid #ef4444; }
+        .priority-medium { border-left: 4px solid #f59e0b; }
+        .priority-low { border-left: 4px solid #10b981; }
+        @media print {
+            .chatbot-container { display: none; }
+            body { font-size: 10px; }
+            .dashboard-grid { gap: 0.5rem; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-sm">
+    <div class="container mx-auto p-4">
+        <!-- Header -->
+        <div class="steel-gradient text-white p-4 rounded-lg mb-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center">
+                        <i class="fas fa-industry mr-3"></i>Steel Products Pricing Committee Dashboard
+                    </h1>
+                    <p class="text-gray-300">Discount Request Evaluation System - Oman Region</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-semibold">Total Requests: <span id="totalRequests">8</span></div>
+                    <div class="text-sm">Pending Value: OMR <span id="totalValue">2,840,000</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white p-4 rounded-lg shadow-sm mb-4">
+            <div class="grid grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Product Type</label>
+                    <select id="productFilter" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <option value="All">All Products</option>
+                        <option value="Wire Rod">Wire Rod</option>
+                        <option value="Rebar">Rebar</option>
+                        <option value="Billets">Billets</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Region</label>
+                    <select id="regionFilter" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <option value="Oman">Oman</option>
+                        <option value="All">All Regions</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Booking Stage</label>
+                    <select id="stageFilter" class="w-full border border-gray-300 rounded px-2 py-1 text-sm">
+                        <option value="All">All Stages</option>
+                        <option value="Inquiry">Inquiry</option>
+                        <option value="Negotiation">Negotiation</option>
+                        <option value="Final Review">Final Review</option>
+                        <option value="Ready to Close">Ready to Close</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Min Order Value (OMR)</label>
+                    <input type="range" id="minValueSlider" min="0" max="1000000" value="0" class="w-full">
+                    <span class="text-xs text-gray-500" id="minValueDisplay">0</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Max Order Value (OMR)</label>
+                    <input type="range" id="maxValueSlider" min="0" max="1000000" value="1000000" class="w-full">
+                    <span class="text-xs text-gray-500" id="maxValueDisplay">1,000,000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Request List -->
+            <div class="full-width bg-white rounded-lg shadow-sm p-4">
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-list-alt mr-2 text-blue-600"></i>Discount Requests
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-2 py-2 text-left">Customer</th>
+                                <th class="px-2 py-2 text-left">Product</th>
+                                <th class="px-2 py-2 text-right">Discount %</th>
+                                <th class="px-2 py-2 text-right">Order Value (OMR)</th>
+                                <th class="px-2 py-2 text-center">Stage</th>
+                                <th class="px-2 py-2 text-center">Priority</th>
+                                <th class="px-2 py-2 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="requestsTable">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Customer Profile Panel -->
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-user-tie mr-2 text-green-600"></i>Customer Profile
+                </h3>
+                <div id="customerProfile">
+                    <div class="space-y-3">
+                        <div class="border-l-4 border-blue-500 pl-3">
+                            <div class="text-xs text-gray-600">Customer</div>
+                            <div class="font-semibold" id="customerName">Select a request</div>
+                            <div class="text-xs text-gray-500" id="customerTier">Tier: -</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-600">Avg Monthly Sales</div>
+                                <div class="font-semibold text-green-600" id="avgSales">OMR 0</div>
+                                <div class="text-xs text-gray-500" id="salesTrend">-</div>
+                            </div>
+                            <div class="bg-gray-50 p-2 rounded">
+                                <div class="text-xs text-gray-600">Avg Discount</div>
+                                <div class="font-semibold text-orange-600" id="avgDiscount">0%</div>
+                                <div class="text-xs text-gray-500" id="discountTrend">-</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="customerGrowthChart"></canvas>
+                        </div>
+                        <div class="small-chart">
+                            <canvas id="productWiseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regional Context Panel -->
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-map-marker-alt mr-2 text-red-600"></i>Oman Regional Context
+                </h3>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-blue-50 p-2 rounded">
+                            <div class="text-xs text-gray-600">Wire Rod</div>
+                            <div class="font-semibold text-blue-600">12.5%</div>
+                            <div class="text-xs text-green-600">↑ High Demand</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded">
+                            <div class="text-xs text-gray-600">Rebar</div>
+                            <div class="font-semibold text-green-600">15.2%</div>
+                            <div class="text-xs text-orange-600">→ Stable</div>
+                        </div>
+                        <div class="bg-purple-50 p-2 rounded">
+                            <div class="text-xs text-gray-600">Billets</div>
+                            <div class="font-semibold text-purple-600">8.7%</div>
+                            <div class="text-xs text-red-600">↓ Low Demand</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Production Pipeline</h4>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <span>Wire Rod Capacity</span>
+                                <span class="font-semibold text-green-600">85% Utilized</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Rebar Capacity</span>
+                                <span class="font-semibold text-orange-600">92% Utilized</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Billets Capacity</span>
+                                <span class="font-semibold text-blue-600">78% Utilized</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Inventory Levels</h4>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <span>Wire Rod</span>
+                                <span class="font-semibold text-red-600">2,450 MT (Low)</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Rebar</span>
+                                <span class="font-semibold text-green-600">8,320 MT (Optimal)</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Billets</span>
+                                <span class="font-semibold text-orange-600">5,100 MT (Medium)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mini-chart">
+                        <canvas id="demandSupplyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Margin Impact Analysis -->
+            <div class="bg-white rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-chart-line mr-2 text-purple-600"></i>Margin Impact Analysis
+                </h3>
+                <div class="space-y-3">
+                    <div class="bg-gray-50 p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Current Request Impact</h4>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <span>Original Margin</span>
+                                <span class="font-semibold" id="originalMargin">22.5%</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Requested Discount</span>
+                                <span class="font-semibold text-red-600" id="requestedDiscount">15%</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>New Margin</span>
+                                <span class="font-semibold text-green-600" id="newMargin">19.1%</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Margin Impact</span>
+                                <span class="font-semibold text-red-600" id="marginImpact">-OMR 45,600</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Scenario Analysis</h4>
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="border-b">
+                                    <th class="text-left py-1">Discount</th>
+                                    <th class="text-right py-1">Margin</th>
+                                    <th class="text-right py-1">Impact</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scenarioTable">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="bg-red-50 p-2 rounded border border-red-200">
+                        <div class="text-xs text-red-800">
+                            <i class="fas fa-exclamation-triangle mr-1"></i>
+                            <strong>Risk Assessment:</strong> <span id="riskAssessment">Medium Risk - Monitor closely</span>
+                        </div>
+                    </div>
+
+                    <div class="small-chart">
+                        <canvas id="marginImpactChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Summary -->
+        <div class="bg-white rounded-lg shadow-sm p-4 mt-4">
+            <h3 class="text-lg font-semibold mb-3 flex items-center">
+                <i class="fas fa-calendar-alt mr-2 text-indigo-600"></i>Monthly Impact Summary
+            </h3>
+            <div class="grid grid-cols-4 gap-4">
+                <div class="text-center bg-blue-50 p-3 rounded">
+                    <div class="text-xs text-gray-600">Total Requests</div>
+                    <div class="text-2xl font-bold text-blue-600">8</div>
+                    <div class="text-xs text-blue-500">This Month</div>
+                </div>
+                <div class="text-center bg-green-50 p-3 rounded">
+                    <div class="text-xs text-gray-600">Total Order Value</div>
+                    <div class="text-2xl font-bold text-green-600">2.84M</div>
+                    <div class="text-xs text-green-500">OMR</div>
+                </div>
+                <div class="text-center bg-orange-50 p-3 rounded">
+                    <div class="text-xs text-gray-600">Avg Discount Requested</div>
+                    <div class="text-2xl font-bold text-orange-600">16.8%</div>
+                    <div class="text-xs text-orange-500">Overall</div>
+                </div>
+                <div class="text-center bg-red-50 p-3 rounded">
+                    <div class="text-xs text-gray-600">Potential Margin Impact</div>
+                    <div class="text-2xl font-bold text-red-600">-458K</div>
+                    <div class="text-xs text-red-500">OMR</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Chatbot -->
+    <div class="chatbot-container">
+        <div class="bg-white rounded-lg shadow-lg border">
+            <div class="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
+                <h4 class="font-semibold text-sm flex items-center">
+                    <i class="fas fa-robot mr-2"></i>AI Assistant
+                </h4>
+                <button id="toggleChat" class="text-white hover:text-gray-200">
+                    <i class="fas fa-minus"></i>
+                </button>
+            </div>
+            <div id="chatContent" class="p-3">
+                <div class="chat-messages mb-3 border rounded p-2 bg-gray-50" id="chatMessages">
+                    <div class="text-xs text-gray-600 mb-2">
+                        <i class="fas fa-info-circle mr-1"></i>Ask me about margin impacts, customer analysis, or regional comparisons!
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="chatInput" placeholder="Ask a question..." class="flex-1 border rounded px-2 py-1 text-xs">
+                    <button id="sendChat" class="bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="mt-2 flex flex-wrap gap-1">
+                    <button class="quick-question bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-200" data-question="What's the total margin impact if I approve all requests?">Total Impact</button>
+                    <button class="quick-question bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-200" data-question="Show me Wire Rod performance vs Oman average">Wire Rod Performance</button>
+                    <button class="quick-question bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-200" data-question="What's the risk of approving all high-value requests?">Risk Analysis</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data
+        const discountRequests = [
+            { id: 1, customer: "Muscat Steel Co.", product: "Wire Rod", discount: 15, orderValue: 450000, stage: "Negotiation", priority: "High", originalMargin: 22.5, customerTier: "Platinum", avgSales: 850000, avgDiscount: 12.3, growth: 15.2 },
+            { id: 2, customer: "Oman Construction Ltd.", product: "Rebar", discount: 18, orderValue: 380000, stage: "Final Review", priority: "Medium", originalMargin: 25.1, customerTier: "Gold", avgSales: 420000, avgDiscount: 14.7, growth: 8.7 },
+            { id: 3, customer: "Al Batinah Industries", product: "Billets", discount: 12, orderValue: 620000, stage: "Ready to Close", priority: "Low", originalMargin: 19.8, customerTier: "Silver", avgSales: 280000, avgDiscount: 16.2, growth: -2.1 },
+            { id: 4, customer: "Sohar Port Authority", product: "Wire Rod", discount: 20, orderValue: 290000, stage: "Inquiry", priority: "High", originalMargin: 23.7, customerTier: "Platinum", avgSales: 950000, avgDiscount: 11.8, growth: 22.4 },
+            { id: 5, customer: "Nizwa Steel Works", product: "Rebar", discount: 16, orderValue: 340000, stage: "Negotiation", priority: "Medium", originalMargin: 21.3, customerTier: "Gold", avgSales: 380000, avgDiscount: 15.1, growth: 12.8 },
+            { id: 6, customer: "Sur Industrial Co.", product: "Billets", discount: 14, orderValue: 480000, stage: "Final Review", priority: "Low", originalMargin: 24.6, customerTier: "Silver", avgSales: 320000, avgDiscount: 13.9, growth: 5.6 },
+            { id: 7, customer: "Musandam Trading", product: "Wire Rod", discount: 22, orderValue: 180000, stage: "Ready to Close", priority: "High", originalMargin: 20.4, customerTier: "Gold", avgSales: 290000, avgDiscount: 17.3, growth: -1.2 },
+            { id: 8, customer: "Dhofar Steel Mills", product: "Rebar", discount: 19, orderValue: 520000, stage: "Negotiation", priority: "Medium", originalMargin: 26.8, customerTier: "Platinum", avgSales: 780000, avgDiscount: 13.2, growth: 18.9 }
+        ];
+
+        let selectedRequest = null;
+        let customerGrowthChart, productWiseChart, demandSupplyChart, marginImpactChart;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            renderRequestsTable();
+            initializeCharts();
+            setupEventListeners();
+            setupChatbot();
+            updateSummary();
+        });
+
+        function renderRequestsTable() {
+            const tbody = document.getElementById('requestsTable');
+            tbody.innerHTML = '';
+            
+            discountRequests.forEach(request => {
+                const row = document.createElement('tr');
+                row.className = `request-row priority-${request.priority.toLowerCase()}`;
+                row.onclick = () => selectRequest(request);
+                
+                const stageClass = `status-${request.stage.toLowerCase().replace(' ', '')}`;
+                const priorityBadge = `<span class="px-2 py-1 rounded text-xs font-semibold bg-${request.priority === 'High' ? 'red' : request.priority === 'Medium' ? 'yellow' : 'green'}-100 text-${request.priority === 'High' ? 'red' : request.priority === 'Medium' ? 'yellow' : 'green'}-800">${request.priority}</span>`;
+                
+                row.innerHTML = `
+                    <td class="px-2 py-2 font-medium">${request.customer}</td>
+                    <td class="px-2 py-2">${request.product}</td>
+                    <td class="px-2 py-2 text-right font-semibold text-red-600">${request.discount}%</td>
+                    <td class="px-2 py-2 text-right font-semibold">OMR ${request.orderValue.toLocaleString()}</td>
+                    <td class="px-2 py-2 text-center"><span class="px-2 py-1 rounded text-xs font-medium ${stageClass}">${request.stage}</span></td>
+                    <td class="px-2 py-2 text-center">${priorityBadge}</td>
+                    <td class="px-2 py-2 text-center">
+                        <button class="bg-green-500 text-white px-2 py-1 rounded text-xs mr-1 hover:bg-green-600" onclick="approveRequest(${request.id})">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <button class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600" onclick="rejectRequest(${request.id})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function selectRequest(request) {
+            selectedRequest = request;
+            
+            // Update selected row styling
+            document.querySelectorAll('.request-row').forEach(row => row.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            
+            updateCustomerProfile(request);
+            updateMarginAnalysis(request);
+        }
+
+        function updateCustomerProfile(request) {
+            document.getElementById('customerName').textContent = request.customer;
+            document.getElementById('customerTier').textContent = `Tier: ${request.customerTier}`;
+            document.getElementById('avgSales').textContent = `OMR ${request.avgSales.toLocaleString()}`;
+            document.getElementById('avgDiscount').textContent = `${request.avgDiscount}%`;
+            document.getElementById('salesTrend').textContent = `${request.growth > 0 ? '↑' : '↓'} ${Math.abs(request.growth)}% YoY`;
+            document.getElementById('discountTrend').textContent = `vs ${request.avgDiscount - 2.1}% avg`;
+            
+            updateCustomerCharts(request);
+        }
+
+        function updateMarginAnalysis(request) {
+            const newMargin = request.originalMargin * (1 - request.discount / 100);
+            const marginImpact = -(request.orderValue * request.discount / 100);
+            
+            document.getElementById('originalMargin').textContent = `${request.originalMargin}%`;
+            document.getElementById('requestedDiscount').textContent = `${request.discount}%`;
+            document.getElementById('newMargin').textContent = `${newMargin.toFixed(1)}%`;
+            document.getElementById('marginImpact').textContent = `OMR ${marginImpact.toLocaleString()}`;
+            
+            // Risk assessment
+            let risk = 'Low Risk';
+            if (request.discount > 20) risk = 'High Risk - Requires approval';
+            else if (request.discount > 15) risk = 'Medium Risk - Monitor closely';
+            document.getElementById('riskAssessment').textContent = risk;
+            
+            updateScenarioTable(request);
+            updateMarginChart(request);
+        }
+
+        function updateScenarioTable(request) {
+            const scenarios = [5, 10, 15, 20, 25];
+            const tbody = document.getElementById('scenarioTable');
+            tbody.innerHTML = '';
+            
+            scenarios.forEach(discount => {
+                const newMargin = request.originalMargin * (1 - discount / 100);
+                const impact = -(request.orderValue * discount / 100);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="py-1">${discount}%</td>
+                    <td class="text-right py-1">${newMargin.toFixed(1)}%</td>
+                    <td class="text-right py-1 ${impact < 0 ? 'text-red-600' : 'text-green-600'}">OMR ${impact.toLocaleString()}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function initializeCharts() {
+            // Customer Growth Chart
+            const growthCtx = document.getElementById('customerGrowthChart').getContext('2d');
+            customerGrowthChart = new Chart(growthCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Monthly Sales',
+                        data: [420, 450, 380, 490, 520, 580],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { display: false },
+                        x: { display: false }
+                    }
+                }
+            });
+
+            // Product Wise Chart
+            const productCtx = document.getElementById('productWiseChart').getContext('2d');
+            productWiseChart = new Chart(productCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Wire Rod', 'Rebar', 'Billets'],
+                    datasets: [{
+                        data: [45, 35, 20],
+                        backgroundColor: ['#3b82f6', '#10b981', '#8b5cf6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // Demand Supply Chart
+            const demandCtx = document.getElementById('demandSupplyChart').getContext('2d');
+            demandSupplyChart = new Chart(demandCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Wire Rod', 'Rebar', 'Billets'],
+                    datasets: [{
+                        label: 'Demand',
+                        data: [85, 70, 60],
+                        backgroundColor: '#ef4444'
+                    }, {
+                        label: 'Supply',
+                        data: [75, 90, 85],
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { display: false },
+                        x: { display: false }
+                    }
+                }
+            });
+
+            // Margin Impact Chart
+            const marginCtx = document.getElementById('marginImpactChart').getContext('2d');
+            marginImpactChart = new Chart(marginCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['5%', '10%', '15%', '20%', '25%'],
+                    datasets: [{
+                        label: 'Margin Impact',
+                        data: [-22500, -45000, -67500, -90000, -112500],
+                        backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#dc2626', '#991b1b']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateCustomerCharts(request) {
+            // Update customer growth chart with request-specific data
+            const growthData = [
+                request.avgSales * 0.8,
+                request.avgSales * 0.9,
+                request.avgSales * 0.85,
+                request.avgSales * 1.1,
+                request.avgSales * 1.05,
+                request.avgSales
+            ];
+            customerGrowthChart.data.datasets[0].data = growthData;
+            customerGrowthChart.update();
+        }
+
+        function updateMarginChart(request) {
+            const discounts = [5, 10, 15, 20, 25];
+            const impacts = discounts.map(d => -(request.orderValue * d / 100));
+            marginImpactChart.data.datasets[0].data = impacts;
+            marginImpactChart.update();
+        }
+
+        function setupEventListeners() {
+            // Filter event listeners
+            document.getElementById('productFilter').addEventListener('change', applyFilters);
+            document.getElementById('regionFilter').addEventListener('change', applyFilters);
+            document.getElementById('stageFilter').addEventListener('change', applyFilters);
+            document.getElementById('minValueSlider').addEventListener('input', updateSliderValues);
+            document.getElementById('maxValueSlider').addEventListener('input', updateSliderValues);
+        }
+
+        function updateSliderValues() {
+            const minValue = document.getElementById('minValueSlider').value;
+            const maxValue = document.getElementById('maxValueSlider').value;
+            document.getElementById('minValueDisplay').textContent = parseInt(minValue).toLocaleString();
+            document.getElementById('maxValueDisplay').textContent = parseInt(maxValue).toLocaleString();
+            applyFilters();
+        }
+
+        function applyFilters() {
+            // Filter logic would go here
+            console.log('Filters applied');
+        }
+
+        function setupChatbot() {
+            const chatInput = document.getElementById('chatInput');
+            const sendButton = document.getElementById('sendChat');
+            const toggleButton = document.getElementById('toggleChat');
+            const chatContent = document.getElementById('chatContent');
+            const quickQuestions = document.querySelectorAll('.quick-question');
+
+            sendButton.addEventListener('click', sendMessage);
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
+
+            toggleButton.addEventListener('click', function() {
+                chatContent.style.display = chatContent.style.display === 'none' ? 'block' : 'none';
+                toggleButton.innerHTML = chatContent.style.display === 'none' ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
+            });
+
+            quickQuestions.forEach(button => {
+                button.addEventListener('click', function() {
+                    const question = this.getAttribute('data-question');
+                    chatInput.value = question;
+                    sendMessage();
+                });
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const messagesDiv = document.getElementById('chatMessages');
+            const message = input.value.trim();
+            
+            if (!message) return;
+
+            // Add user message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'mb-2 text-right';
+            userMsg.innerHTML = `<div class="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs inline-block">${message}</div>`;
+            messagesDiv.appendChild(userMsg);
+
+            // Add bot response
+            const botResponse = generateBotResponse(message);
+            const botMsg = document.createElement('div');
+            botMsg.className = 'mb-2';
+            botMsg.innerHTML = `<div class="bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs inline-block">${botResponse}</div>`;
+            messagesDiv.appendChild(botMsg);
+
+            input.value = '';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function generateBotResponse(message) {
+            const msg = message.toLowerCase();
+            
+            if (msg.includes('total') && msg.includes('impact')) {
+                return `<strong>Total Margin Impact Analysis:</strong><br>
+                        • All 8 requests: -OMR 458,000<br>
+                        • High priority (3): -OMR 198,000<br>
+                        • Medium priority (3): -OMR 142,000<br>
+                        • Low priority (2): -OMR 118,000<br>
+                        ⚠️ This represents 8.3% of monthly revenue.`;
+            }
+            
+            if (msg.includes('wire rod') && msg.includes('performance')) {
+                return `<strong>Wire Rod Performance vs Oman Average:</strong><br>
+                        • Oman Avg Discount: 12.5%<br>
+                        • Current Requests: 15.7% avg<br>
+                        • Performance: +18% above regional demand<br>
+                        • Inventory Status: Low (2,450 MT)<br>
+                        💡 Consider premium pricing due to high demand.`;
+            }
+            
+            if (msg.includes('risk') && (msg.includes('high') || msg.includes('all'))) {
+                return `<strong>Risk Assessment - High Value Requests:</strong><br>
+                        • 3 requests >OMR 400K = OMR 1.45M total<br>
+                        • Combined margin impact: -OMR 246K<br>
+                        • Risk Level: HIGH ⚠️<br>
+                        • Recommendation: Stagger approvals across 2 months<br>
+                        • Alternative: Counter with 12-14% discount.`;
+            }
+            
+            if (msg.includes('20%') || msg.includes('margin')) {
+                const customer = selectedRequest ? selectedRequest.customer : 'selected customer';
+                const impact = selectedRequest ? -(selectedRequest.orderValue * 0.20) : -90000;
+                return `<strong>20% Discount Impact for ${customer}:</strong><br>
+                        • Margin reduction: -OMR ${Math.abs(impact).toLocaleString()}<br>
+                        • New margin: ${selectedRequest ? (selectedRequest.originalMargin * 0.8).toFixed(1) : '18.0'}%<br>
+                        • Risk: ${Math.abs(impact) > 80000 ? 'HIGH' : 'MEDIUM'}<br>
+                        • Recommendation: Consider 15% maximum.`;
+            }
+            
+            return `I can help with margin analysis, customer insights, and regional comparisons. Try asking about specific discount impacts, total monthly effects, or product performance comparisons.`;
+        }
+
+        function updateSummary() {
+            const totalRequests = discountRequests.length;
+            const totalValue = discountRequests.reduce((sum, req) => sum + req.orderValue, 0);
+            
+            document.getElementById('totalRequests').textContent = totalRequests;
+            document.getElementById('totalValue').textContent = totalValue.toLocaleString();
+        }
+
+        function approveRequest(id) {
+            if (confirm('Are you sure you want to approve this discount request?')) {
+                alert(`Request #${id} approved successfully!`);
+                // Implementation for approval workflow
+            }
+        }
+
+        function rejectRequest(id) {
+            if (confirm('Are you sure you want to reject this discount request?')) {
+                alert(`Request #${id} rejected successfully!`);
+                // Implementation for rejection workflow
+            }
+        }
+
+        // Select first request by default
+        setTimeout(() => {
+            if (discountRequests.length > 0) {
+                selectRequest(discountRequests[0]);
+                document.querySelector('.request-row').classList.add('selected');
+            }
+        }, 100);
+    </script>
+</body>
+</html>
