@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steel Products Pricing Committee Dashboard - React TypeScript</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                }
+            },
+        }
+    };
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --background: hsl(210 40% 96%);
+            --foreground: hsl(222 84% 5%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(222 84% 5%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(222 84% 5%);
+            --primary: hsl(210 40% 21%);
+            --primary-foreground: hsl(210 40% 98%);
+            --secondary: hsl(210 40% 96%);
+            --secondary-foreground: hsl(222 47% 11%);
+            --muted: hsl(210 40% 96%);
+            --muted-foreground: hsl(215 16% 47%);
+            --accent: hsl(210 40% 96%);
+            --accent-foreground: hsl(222 47% 11%);
+            --destructive: hsl(0 84% 60%);
+            --destructive-foreground: hsl(210 40% 98%);
+            --border: hsl(214 32% 91%);
+            --input: hsl(214 32% 91%);
+            --ring: hsl(222 84% 5%);
+            --radius: 0.5rem;
+        }
+
+        .chart-container { 
+            height: 180px !important; 
+            position: relative;
+        }
+        .small-chart { 
+            height: 120px !important; 
+            position: relative;
+        }
+        .mini-chart { 
+            height: 80px !important; 
+            position: relative;
+        }
+        .dashboard-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 1rem; 
+        }
+        .full-width { 
+            grid-column: 1 / -1; 
+        }
+        .half-width { 
+            grid-column: span 2; 
+        }
+        .steel-gradient { 
+            background: linear-gradient(135deg, #434343 0%, #000000 100%); 
+        }
+        .request-row:hover { 
+            background-color: #f3f4f6; 
+            cursor: pointer; 
+        }
+        .request-row.selected { 
+            background-color: #dbeafe; 
+            border-left: 4px solid #3b82f6; 
+        }
+        .status-inquiry { 
+            background-color: #fef3c7; 
+            color: #92400e; 
+        }
+        .status-negotiation { 
+            background-color: #dbeafe; 
+            color: #1e40af; 
+        }
+        .status-review { 
+            background-color: #fed7aa; 
+            color: #c2410c; 
+        }
+        .status-ready { 
+            background-color: #d1fae5; 
+            color: #065f46; 
+        }
+        .priority-high { 
+            border-left: 4px solid #ef4444; 
+        }
+        .priority-medium { 
+            border-left: 4px solid #f59e0b; 
+        }
+        .priority-low { 
+            border-left: 4px solid #10b981; 
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .half-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background text-sm text-foreground">
+    <!-- @COMPONENT: App [Main application wrapper with state management] -->
+    <div class="container mx-auto p-4">
+        <!-- @COMPONENT: DashboardHeader [Header with title, statistics, and steel branding] -->
+        <div class="steel-gradient text-primary-foreground p-4 rounded-lg mb-4">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold flex items-center">
+                        <i class="fas fa-industry mr-3" data-mock="true"></i>
+                        <span data-bind="app.title">Steel Products Pricing Committee Dashboard</span>
+                    </h1>
+                    <p class="text-primary-foreground/70">
+                        <span data-bind="app.subtitle">Discount Request Evaluation System - Oman Region</span>
+                    </p>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-semibold">
+                        Total Requests: <span data-bind="dashboard.totalRequests" data-mock="true">8</span>
+                    </div>
+                    <div class="text-sm">
+                        Pending Value: OMR <span data-bind="dashboard.totalValue" data-mock="true">2,840,000</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: DashboardHeader -->
+
+        <!-- @COMPONENT: FilterControls [Interactive filtering system for requests] -->
+        <div class="bg-card p-4 rounded-lg shadow-sm mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-muted-foreground mb-1">Product Type</label>
+                    <select 
+                        data-event="change:handleProductFilter" 
+                        data-bind="filters.productType"
+                        class="w-full border border-input rounded px-2 py-1 text-sm bg-background"
+                    >
+                        <option value="All" data-mock="true">All Products</option>
+                        <option value="Wire Rod" data-mock="true">Wire Rod</option>
+                        <option value="Rebar" data-mock="true">Rebar</option>
+                        <option value="Billets" data-mock="true">Billets</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted-foreground mb-1">Region</label>
+                    <select 
+                        data-event="change:handleRegionFilter"
+                        data-bind="filters.region"
+                        class="w-full border border-input rounded px-2 py-1 text-sm bg-background"
+                    >
+                        <option value="Oman" data-mock="true">Oman</option>
+                        <option value="All" data-mock="true">All Regions</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted-foreground mb-1">Booking Stage</label>
+                    <select 
+                        data-event="change:handleStageFilter"
+                        data-bind="filters.stage"
+                        class="w-full border border-input rounded px-2 py-1 text-sm bg-background"
+                    >
+                        <option value="All" data-mock="true">All Stages</option>
+                        <option value="Inquiry" data-mock="true">Inquiry</option>
+                        <option value="Negotiation" data-mock="true">Negotiation</option>
+                        <option value="Final Review" data-mock="true">Final Review</option>
+                        <option value="Ready to Close" data-mock="true">Ready to Close</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted-foreground mb-1">Min Order Value (OMR)</label>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="1000000" 
+                        data-bind="filters.minValue"
+                        data-event="input:handleMinValueChange"
+                        class="w-full accent-primary"
+                        data-mock="true"
+                    />
+                    <span class="text-xs text-muted-foreground" data-bind="filters.minValueDisplay" data-mock="true">0</span>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-muted-foreground mb-1">Max Order Value (OMR)</label>
+                    <input 
+                        type="range" 
+                        min="0" 
+                        max="1000000" 
+                        data-bind="filters.maxValue"
+                        data-event="input:handleMaxValueChange"
+                        class="w-full accent-primary"
+                        data-mock="true"
+                    />
+                    <span class="text-xs text-muted-foreground" data-bind="filters.maxValueDisplay" data-mock="true">1,000,000</span>
+                </div>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: FilterControls -->
+
+        <!-- @COMPONENT: DashboardGrid [Main dashboard layout container] -->
+        <div class="dashboard-grid">
+            <!-- @COMPONENT: RequestList [Table of discount requests with selection] -->
+            <div class="full-width bg-card rounded-lg shadow-sm p-4">
+                <h2 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-list-alt mr-2 text-blue-600" data-mock="true"></i>
+                    <span data-bind="requestList.title">Discount Requests</span>
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead class="bg-secondary">
+                            <tr>
+                                <th class="px-2 py-2 text-left">Customer</th>
+                                <th class="px-2 py-2 text-left">Product</th>
+                                <th class="px-2 py-2 text-right">Discount %</th>
+                                <th class="px-2 py-2 text-right">Order Value (OMR)</th>
+                                <th class="px-2 py-2 text-center">Stage</th>
+                                <th class="px-2 py-2 text-center">Priority</th>
+                                <th class="px-2 py-2 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- @MAP: requests.map(request => ( -->
+                            <tr class="request-row border-b border-border hover:bg-muted/50 cursor-pointer" data-event="click:handleRequestSelect" data-mock="true">
+                                <td class="px-2 py-2">
+                                    <div class="font-medium" data-mock="true">Arabian Steel Co.</div>
+                                    <div class="text-muted-foreground text-xs" data-mock="true">Premium Tier</div>
+                                </td>
+                                <td class="px-2 py-2">
+                                    <div data-mock="true">Wire Rod</div>
+                                    <div class="text-muted-foreground text-xs" data-mock="true">Grade A500</div>
+                                </td>
+                                <td class="px-2 py-2 text-right font-semibold text-orange-600" data-mock="true">12.5%</td>
+                                <td class="px-2 py-2 text-right font-medium" data-mock="true">485,000</td>
+                                <td class="px-2 py-2 text-center">
+                                    <span class="px-2 py-1 text-xs rounded-full status-negotiation" data-mock="true">Negotiation</span>
+                                </td>
+                                <td class="px-2 py-2 text-center priority-high">
+                                    <span class="text-xs font-medium text-red-600" data-mock="true">High</span>
+                                </td>
+                                <td class="px-2 py-2 text-center">
+                                    <button 
+                                        class="text-blue-600 hover:text-blue-800 mx-1" 
+                                        data-event="click:handleApprove"
+                                        data-implementation="Should validate approval criteria"
+                                        data-mock="true"
+                                    >
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button 
+                                        class="text-red-600 hover:text-red-800 mx-1"
+                                        data-event="click:handleReject" 
+                                        data-implementation="Should show rejection reason dialog"
+                                        data-mock="true"
+                                    >
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="request-row border-b border-border hover:bg-muted/50 cursor-pointer" data-event="click:handleRequestSelect" data-mock="true">
+                                <td class="px-2 py-2">
+                                    <div class="font-medium" data-mock="true">Gulf Metal Industries</div>
+                                    <div class="text-muted-foreground text-xs" data-mock="true">Gold Tier</div>
+                                </td>
+                                <td class="px-2 py-2">
+                                    <div data-mock="true">Rebar</div>
+                                    <div class="text-muted-foreground text-xs" data-mock="true">Grade B450</div>
+                                </td>
+                                <td class="px-2 py-2 text-right font-semibold text-orange-600" data-mock="true">8.2%</td>
+                                <td class="px-2 py-2 text-right font-medium" data-mock="true">720,000</td>
+                                <td class="px-2 py-2 text-center">
+                                    <span class="px-2 py-1 text-xs rounded-full status-ready" data-mock="true">Ready to Close</span>
+                                </td>
+                                <td class="px-2 py-2 text-center priority-medium">
+                                    <span class="text-xs font-medium text-orange-600" data-mock="true">Medium</span>
+                                </td>
+                                <td class="px-2 py-2 text-center">
+                                    <button 
+                                        class="text-blue-600 hover:text-blue-800 mx-1" 
+                                        data-event="click:handleApprove"
+                                        data-mock="true"
+                                    >
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button 
+                                        class="text-red-600 hover:text-red-800 mx-1"
+                                        data-event="click:handleReject"
+                                        data-mock="true"
+                                    >
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="request-row border-b border-border hover:bg-muted/50 cursor-pointer" data-event="click:handleRequestSelect" data-mock="true">
+                                <td class="px-2 py-2">
+                                    <div class="font-medium" data-mock="true">Oman Construction Ltd</div>
+                                    <div class="text-muted-foreground text-xs" data-mock="true">Silver Tier</div>
+                                </td>
+                                <td class="px-2 py-2">
+                                    <div data-mock="true">Billets</div>
+                                    <div class="text-muted-foreground text-xs" data-mock="true">150x150mm</div>
+                                </td>
+                                <td class="px-2 py-2 text-right font-semibold text-orange-600" data-mock="true">15.0%</td>
+                                <td class="px-2 py-2 text-right font-medium" data-mock="true">350,000</td>
+                                <td class="px-2 py-2 text-center">
+                                    <span class="px-2 py-1 text-xs rounded-full status-inquiry" data-mock="true">Inquiry</span>
+                                </td>
+                                <td class="px-2 py-2 text-center priority-low">
+                                    <span class="text-xs font-medium text-green-600" data-mock="true">Low</span>
+                                </td>
+                                <td class="px-2 py-2 text-center">
+                                    <button 
+                                        class="text-blue-600 hover:text-blue-800 mx-1" 
+                                        data-event="click:handleApprove"
+                                        data-mock="true"
+                                    >
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                    <button 
+                                        class="text-red-600 hover:text-red-800 mx-1"
+                                        data-event="click:handleReject"
+                                        data-mock="true"
+                                    >
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <!-- @END_MAP )) -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: RequestList -->
+
+            <!-- @COMPONENT: CustomerProfile [Selected customer detailed information and charts] -->
+            <div class="bg-card rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-user-tie mr-2 text-green-600" data-mock="true"></i>
+                    <span data-bind="customerProfile.title">Customer Profile</span>
+                </h3>
+                <div data-state="selectedCustomer:Customer | null = null">
+                    <div class="space-y-3">
+                        <div class="border-l-4 border-blue-500 pl-3">
+                            <div class="text-xs text-muted-foreground">Customer</div>
+                            <div class="font-semibold" data-bind="selectedCustomer.name" data-mock="true">Arabian Steel Co.</div>
+                            <div class="text-xs text-muted-foreground" data-bind="selectedCustomer.tier" data-mock="true">Tier: Premium</div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="bg-muted p-2 rounded">
+                                <div class="text-xs text-muted-foreground">Avg Monthly Sales</div>
+                                <div class="font-semibold text-green-600" data-bind="selectedCustomer.avgSales" data-mock="true">OMR 1,250,000</div>
+                                <div class="text-xs text-green-600" data-bind="selectedCustomer.salesTrend" data-mock="true">↗ +12% YoY</div>
+                            </div>
+                            <div class="bg-muted p-2 rounded">
+                                <div class="text-xs text-muted-foreground">Avg Discount</div>
+                                <div class="font-semibold text-orange-600" data-bind="selectedCustomer.avgDiscount" data-mock="true">9.2%</div>
+                                <div class="text-xs text-orange-600" data-bind="selectedCustomer.discountTrend" data-mock="true">↗ +2.1%</div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <!-- @FUNCTIONALITY: Customer growth chart showing 12-month sales trend using Chart.js -->
+                            <canvas data-chart="customerGrowth" data-implementation="Implement Chart.js line chart for customer growth data"></canvas>
+                        </div>
+                        <div class="small-chart">
+                            <!-- @FUNCTIONALITY: Product-wise distribution chart showing customer's product mix -->
+                            <canvas data-chart="productWise" data-implementation="Implement Chart.js pie chart for product distribution"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: CustomerProfile -->
+
+            <!-- @COMPONENT: RegionalContext [Oman market data and analytics] -->
+            <div class="bg-card rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-map-marker-alt mr-2 text-red-600" data-mock="true"></i>
+                    <span data-bind="regionalContext.title">Oman Regional Context</span>
+                </h3>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-blue-50 p-2 rounded">
+                            <div class="text-xs text-muted-foreground">Wire Rod</div>
+                            <div class="font-semibold text-blue-600" data-bind="regional.wireRodMargin" data-mock="true">12.5%</div>
+                            <div class="text-xs text-green-600" data-bind="regional.wireRodTrend" data-mock="true">↑ High Demand</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded">
+                            <div class="text-xs text-muted-foreground">Rebar</div>
+                            <div class="font-semibold text-green-600" data-bind="regional.rebarMargin" data-mock="true">15.2%</div>
+                            <div class="text-xs text-orange-600" data-bind="regional.rebarTrend" data-mock="true">→ Stable</div>
+                        </div>
+                        <div class="bg-purple-50 p-2 rounded">
+                            <div class="text-xs text-muted-foreground">Billets</div>
+                            <div class="font-semibold text-purple-600" data-bind="regional.billetsMargin" data-mock="true">8.7%</div>
+                            <div class="text-xs text-red-600" data-bind="regional.billetsTrend" data-mock="true">↓ Low Demand</div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-muted p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Production Pipeline</h4>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <span>Wire Rod Capacity</span>
+                                <span class="font-semibold text-green-600" data-bind="pipeline.wireRodCapacity" data-mock="true">85% Utilized</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Rebar Capacity</span>
+                                <span class="font-semibold text-orange-600" data-bind="pipeline.rebarCapacity" data-mock="true">92% Utilized</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Billets Capacity</span>
+                                <span class="font-semibold text-blue-600" data-bind="pipeline.billetsCapacity" data-mock="true">78% Utilized</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-muted p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Inventory Levels</h4>
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs">
+                                <span>Wire Rod</span>
+                                <span class="font-semibold text-red-600" data-bind="inventory.wireRod" data-mock="true">2,450 MT (Low)</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Rebar</span>
+                                <span class="font-semibold text-green-600" data-bind="inventory.rebar" data-mock="true">8,320 MT (Optimal)</span>
+                            </div>
+                            <div class="flex justify-between text-xs">
+                                <span>Billets</span>
+                                <span class="font-semibold text-orange-600" data-bind="inventory.billets" data-mock="true">5,100 MT (Medium)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mini-chart">
+                        <!-- @FUNCTIONALITY: Demand vs Supply chart for regional analysis -->
+                        <canvas data-chart="demandSupply" data-implementation="Implement Chart.js bar chart comparing demand vs supply"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: RegionalContext -->
+
+            <!-- @COMPONENT: MarginImpactAnalysis [Financial impact calculations and projections] -->
+            <div class="bg-card rounded-lg shadow-sm p-4">
+                <h3 class="text-lg font-semibold mb-3 flex items-center">
+                    <i class="fas fa-calculator mr-2 text-purple-600" data-mock="true"></i>
+                    <span data-bind="marginAnalysis.title">Margin Impact Analysis</span>
+                </h3>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-red-50 p-2 rounded text-center">
+                            <div class="text-xs text-muted-foreground">Current Margin Loss</div>
+                            <div class="font-bold text-red-600" data-bind="marginAnalysis.currentLoss" data-mock="true">OMR 284,500</div>
+                            <div class="text-xs text-red-600" data-bind="marginAnalysis.currentLossPercent" data-mock="true">-10.2%</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded text-center">
+                            <div class="text-xs text-muted-foreground">Projected Revenue</div>
+                            <div class="font-bold text-green-600" data-bind="marginAnalysis.projectedRevenue" data-mock="true">OMR 2,555,500</div>
+                            <div class="text-xs text-green-600" data-bind="marginAnalysis.revenueGrowth" data-mock="true">+15.3%</div>
+                        </div>
+                    </div>
+
+                    <div class="bg-muted p-3 rounded">
+                        <h4 class="font-semibold text-xs mb-2">Risk Assessment</h4>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs">Market Competition Risk</span>
+                                <div class="flex items-center">
+                                    <div class="w-16 bg-gray-200 rounded-full h-1.5 mr-2">
+                                        <div class="bg-orange-500 h-1.5 rounded-full" style="width: 65%" data-bind="risk.competitionLevel"></div>
+                                    </div>
+                                    <span class="text-xs font-medium text-orange-600" data-mock="true">Medium</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs">Customer Retention Risk</span>
+                                <div class="flex items-center">
+                                    <div class="w-16 bg-gray-200 rounded-full h-1.5 mr-2">
+                                        <div class="bg-green-500 h-1.5 rounded-full" style="width: 30%" data-bind="risk.retentionLevel"></div>
+                                    </div>
+                                    <span class="text-xs font-medium text-green-600" data-mock="true">Low</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs">Volume Impact</span>
+                                <div class="flex items-center">
+                                    <div class="w-16 bg-gray-200 rounded-full h-1.5 mr-2">
+                                        <div class="bg-blue-500 h-1.5 rounded-full" style="width: 85%" data-bind="risk.volumeImpact"></div>
+                                    </div>
+                                    <span class="text-xs font-medium text-blue-600" data-mock="true">High</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <!-- @FUNCTIONALITY: Margin impact trend chart showing historical and projected margins -->
+                        <canvas data-chart="marginImpact" data-implementation="Implement Chart.js line chart for margin impact analysis"></canvas>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-blue-50 p-2 rounded">
+                            <div class="text-xs text-muted-foreground">Break-even</div>
+                            <div class="font-semibold text-blue-600" data-bind="breakeven.months" data-mock="true">8.5 months</div>
+                        </div>
+                        <div class="bg-purple-50 p-2 rounded">
+                            <div class="text-xs text-muted-foreground">ROI Impact</div>
+                            <div class="font-semibold text-purple-600" data-bind="roi.impact" data-mock="true">+12.3%</div>
+                        </div>
+                        <div class="bg-orange-50 p-2 rounded">
+                            <div class="text-xs text-muted-foreground">Payback</div>
+                            <div class="font-semibold text-orange-600" data-bind="payback.period" data-mock="true">14 months</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: MarginImpactAnalysis -->
+
+            <!-- @COMPONENT: ActionButtons [Approval workflow controls] -->
+            <div class="full-width bg-card rounded-lg shadow-sm p-4">
+                <div class="flex justify-between items-center">
+                    <div class="flex space-x-2">
+                        <button 
+                            class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center text-sm"
+                            data-event="click:handleBulkApprove"
+                            data-implementation="Should validate all selected requests meet approval criteria"
+                        >
+                            <i class="fas fa-check mr-2" data-mock="true"></i>
+                            <span data-mock="true">Approve Selected</span>
+                        </button>
+                        <button 
+                            class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center text-sm"
+                            data-event="click:handleBulkReject"
+                            data-implementation="Should show bulk rejection reason dialog"
+                        >
+                            <i class="fas fa-times mr-2" data-mock="true"></i>
+                            <span data-mock="true">Reject Selected</span>
+                        </button>
+                        <button 
+                            class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center text-sm"
+                            data-event="click:handleExport"
+                            data-implementation="Should export selected requests to PDF/Excel format"
+                        >
+                            <i class="fas fa-download mr-2" data-mock="true"></i>
+                            <span data-mock="true">Export Report</span>
+                        </button>
+                    </div>
+                    <div class="text-sm text-muted-foreground">
+                        <span data-bind="selection.count" data-mock="true">0</span> requests selected
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: ActionButtons -->
+        </div>
+        <!-- @END_COMPONENT: DashboardGrid -->
+    </div>
+    <!-- @END_COMPONENT: App -->
+
+    <script>
+        // TODO: Implement React TypeScript conversion with proper state management
+        // TODO: Add Chart.js integration for all chart canvases
+        // TODO: Implement filtering logic and API integration
+        // TODO: Add form validation and error handling
+        // TODO: Implement approval/rejection workflow
+        
+        (() => {
+            // Mock data for demonstration
+            const mockData = {
+                requests: [
+                    {
+                        id: 1,
+                        customer: 'Arabian Steel Co.',
+                        tier: 'Premium',
+                        product: 'Wire Rod',
+                        grade: 'A500',
+                        discount: 12.5,
+                        orderValue: 485000,
+                        stage: 'Negotiation',
+                        priority: 'High'
+                    },
+                    {
+                        id: 2,
+                        customer: 'Gulf Metal Industries',
+                        tier: 'Gold',
+                        product: 'Rebar',
+                        grade: 'B450',
+                        discount: 8.2,
+                        orderValue: 720000,
+                        stage: 'Ready to Close',
+                        priority: 'Medium'
+                    },
+                    {
+                        id: 3,
+                        customer: 'Oman Construction Ltd',
+                        tier: 'Silver',
+                        product: 'Billets',
+                        grade: '150x150mm',
+                        discount: 15.0,
+                        orderValue: 350000,
+                        stage: 'Inquiry',
+                        priority: 'Low'
+                    }
+                ]
+            };
+
+            // Initialize charts when DOM is loaded
+            document.addEventListener('DOMContentLoaded', function() {
+                // Mock chart initialization
+                console.log('Dashboard loaded with mock data:', mockData);
+                console.log('Charts should be initialized here with Chart.js');
+                console.log('React TypeScript conversion needed for full functionality');
+            });
+        })();
+    </script>
+</body>
+</html>
