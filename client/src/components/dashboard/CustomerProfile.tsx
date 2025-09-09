@@ -1,22 +1,78 @@
-import { useQuery } from "@tanstack/react-query";
 import { Customer, CustomerSalesData } from "@shared/schema";
 import CustomerGrowthChart from "@/components/charts/CustomerGrowthChart";
 import ProductWiseChart from "@/components/charts/ProductWiseChart";
+
+// Hardcoded customer data
+const HARDCODED_CUSTOMERS: Customer[] = [
+  {
+    id: "customer-1-arabian-steel",
+    name: "Arabian Steel Co.",
+    tier: "Premium",
+    avgMonthlySales: "1250000",
+    avgDiscount: "9.2",
+    salesTrend: "12.0",
+    discountTrend: "2.1",
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: "customer-2-gulf-metal",
+    name: "Gulf Metal Industries",
+    tier: "Gold",
+    avgMonthlySales: "950000",
+    avgDiscount: "7.8",
+    salesTrend: "8.5",
+    discountTrend: "-1.2",
+    createdAt: new Date('2024-01-01'),
+  },
+  {
+    id: "customer-3-oman-construction",
+    name: "Oman Construction Ltd",
+    tier: "Silver",
+    avgMonthlySales: "650000",
+    avgDiscount: "12.5",
+    salesTrend: "15.2",
+    discountTrend: "3.8",
+    createdAt: new Date('2024-01-01'),
+  }
+];
+
+// Hardcoded customer sales data
+const generateHardcodedSalesData = (customerId: string): CustomerSalesData[] => {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const products = ['Wire Rod', 'Rebar', 'Billets'];
+  const salesData: CustomerSalesData[] = [];
+  
+  const customerIndex = HARDCODED_CUSTOMERS.findIndex(c => c.id === customerId);
+  if (customerIndex === -1) return [];
+  
+  months.forEach(month => {
+    products.forEach(product => {
+      salesData.push({
+        id: `sales-${customerId}-${month}-${product}`.toLowerCase().replace(/\s+/g, '-'),
+        customerId,
+        month,
+        product,
+        sales: (Math.random() * 200000 + 50000 + customerIndex * 100000).toString(),
+        createdAt: new Date('2024-01-01'),
+      });
+    });
+  });
+  
+  return salesData;
+};
 
 interface CustomerProfileProps {
   customerId: string | null;
 }
 
 export default function CustomerProfile({ customerId }: CustomerProfileProps) {
-  const { data: customer } = useQuery<Customer>({
-    queryKey: ['/api/customers', customerId],
-    enabled: !!customerId,
-  });
-
-  const { data: salesData } = useQuery<CustomerSalesData[]>({
-    queryKey: ['/api/customers', customerId, 'sales-data'],
-    enabled: !!customerId,
-  });
+  // Use hardcoded data instead of API calls
+  const customer = customerId
+    ? HARDCODED_CUSTOMERS.find(c => c.id === customerId || c.name === customerId)
+    : null;
+  const salesData = customer
+    ? generateHardcodedSalesData(customer.id)
+    : [];
 
   if (!customerId || !customer) {
     return (

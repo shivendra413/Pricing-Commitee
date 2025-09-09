@@ -1,0 +1,10 @@
+applications:
+- name: Pricing-Committee
+  memory: 512M
+  buildpacks:
+    - https://github.com/cloudfoundry/staticfile-buildpack.git
+  path: dist
+  env:
+    NODE_ENV: production
+  routes:
+      - route: pricing-committee.cfapps.eu10-004.hana.ondemand.com
